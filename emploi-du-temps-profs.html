@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emploi du temps</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,300;6..12,400;6..12,500;6..12,600;6..12,700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --surface2: #f5f5f7;
+  --border: rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.12);
+  --text: #1d1d1f;
+  --text2: #6e6e73;
+  --text3: #aeaeb2;
+  --blue: #3a8ef6;
+  --blue-bg: #eaf2ff;
+  --sans: 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --shadow-xs: 0 1px 3px rgba(0,0,0,0.07);
+  --shadow: 0 4px 20px rgba(0,0,0,0.09), 0 1px 4px rgba(0,0,0,0.04);
+  --r: 12px; --r-xl: 20px;
+  --time-w: 42px;
+  --sidebar-w: 256px;
+}
+
+html, body { height:100%; font-family:var(--sans); background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; overflow:hidden; }
+.app { display:flex; height:100vh; overflow:hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar { width:var(--sidebar-w); flex-shrink:0; background:rgba(255,255,255,0.9); backdrop-filter:blur(20px); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.sb-head { padding:16px 16px 10px; flex-shrink:0; }
+.sb-title { font-size:17px; font-weight:700; letter-spacing:-0.3px; }
+.sb-badge { display:inline-block; margin-top:5px; font-size:10px; color:var(--text2); background:var(--surface2); border:1px solid var(--border2); padding:2px 7px; border-radius:20px; }
+
+.upload-zone { margin:0 12px 8px; border:1.5px dashed var(--border2); border-radius:var(--r); padding:10px; text-align:center; cursor:pointer; transition:all 0.18s; position:relative; background:var(--surface2); flex-shrink:0; }
+.upload-zone:hover,.upload-zone.drag-over { border-color:var(--blue); background:var(--blue-bg); }
+.upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.upload-zone .up-icon { font-size:18px; margin-bottom:2px; }
+.upload-zone strong { display:block; font-size:11px; font-weight:600; }
+.upload-zone small { font-size:10px; color:var(--text3); }
+
+.search-row { padding:0 12px 8px; flex-shrink:0; }
+.search-box { display:flex; align-items:center; gap:6px; background:rgba(118,118,128,0.12); border-radius:10px; padding:6px 10px; }
+.search-box svg { color:var(--text3); flex-shrink:0; }
+.search-box input { border:none; background:transparent; outline:none; font-family:var(--sans); font-size:12px; color:var(--text); width:100%; transition:opacity 0.2s; }
+.search-box input::placeholder { color:var(--text3); }
+
+.prof-scroll { flex:1; overflow-y:auto; padding:2px 6px 10px; }
+.prof-scroll::-webkit-scrollbar { width:3px; }
+.prof-scroll::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+.prof-item { display:flex; align-items:center; gap:9px; padding:7px 9px; border-radius:10px; cursor:pointer; transition:background 0.1s; margin-bottom:1px; }
+.prof-item:hover { background:rgba(0,0,0,0.04); }
+.prof-item.active { background:rgba(58,142,246,0.1); }
+.prof-avatar { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; }
+.pname { font-size:12px; font-weight:500; line-height:1.2; }
+.prof-item.active .pname { color:var(--blue); font-weight:600; }
+.pmeta { font-size:10px; color:var(--text3); }
+.empty-prof { text-align:center; padding:24px 10px; font-size:11px; color:var(--text3); line-height:1.5; }
+
+/* ── MAIN ── */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+.topbar { display:flex; align-items:center; justify-content:space-between; padding:9px 20px 7px; flex-shrink:0; background:rgba(242,242,247,0.92); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); gap:12px; }
+.tb-prof { font-size:14px; font-weight:700; letter-spacing:-0.2px; }
+.tb-range { font-size:10px; color:var(--text2); margin-top:1px; }
+.week-nav { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.nav-btn { width:28px; height:28px; border-radius:50%; border:1px solid var(--border2); background:var(--surface); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text2); font-size:14px; line-height:1; transition:all 0.14s; box-shadow:var(--shadow-xs); }
+.nav-btn:hover:not(:disabled) { background:var(--blue); color:#fff; border-color:var(--blue); box-shadow:0 2px 10px rgba(58,142,246,0.35); }
+.nav-btn:disabled { opacity:0.3; cursor:default; }
+.week-pill { font-size:11px; font-weight:600; color:var(--blue); background:var(--blue-bg); padding:3px 11px; border-radius:20px; min-width:48px; text-align:center; }
+
+/* ── CALENDAR ── */
+.cal-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; padding:10px 14px 12px; min-height:0; }
+.cal-card { flex:1; display:flex; flex-direction:column; background:var(--surface); border-radius:var(--r-xl); box-shadow:var(--shadow); overflow:hidden; min-height:0; }
+.cal-head { display:flex; flex-shrink:0; border-bottom:1px solid var(--border); background:var(--surface2); }
+.head-spacer { width:var(--time-w); flex-shrink:0; border-right:1px solid var(--border); }
+.days-head { flex:1; display:grid; grid-template-columns:repeat(5,1fr); }
+.day-head-cell { padding:7px 4px 6px; text-align:center; border-right:1px solid var(--border); }
+.day-head-cell:last-child { border-right:none; }
+.dhc-name { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--text3); }
+.dhc-num { font-size:16px; font-weight:300; color:var(--text); margin-top:1px; line-height:1; }
+.dhc-num.today { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--blue); color:#fff; font-size:11px; font-weight:700; margin-top:1px; }
+
+.cal-grid-outer { flex:1; overflow-y:auto; overflow-x:hidden; min-height:0; }
+.cal-grid-outer::-webkit-scrollbar { width:4px; }
+.cal-grid-outer::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.1); border-radius:2px; }
+.cal-grid { display:flex; }
+.time-col { width:var(--time-w); flex-shrink:0; border-right:1px solid var(--border); background:var(--surface2); position:relative; }
+.time-tick { position:absolute; left:0; right:0; display:flex; align-items:flex-start; justify-content:flex-end; padding-right:6px; padding-top:3px; }
+.time-tick span { font-size:9px; color:var(--text3); font-weight:500; }
+.days-cols { flex:1; display:grid; grid-template-columns:repeat(5,1fr); position:relative; }
+.day-col { position:relative; border-right:1px solid var(--border); }
+.day-col:last-child { border-right:none; }
+.day-col.is-today { background:rgba(58,142,246,0.025); }
+.grid-line { position:absolute; left:0; right:0; pointer-events:none; }
+.grid-line.solid  { border-top:1px solid var(--border); }
+.grid-line.dashed { border-top:1px dashed rgba(0,0,0,0.05); }
+
+.ev-block { position:absolute; left:4px; right:4px; border-radius:8px; padding:4px 7px; overflow:hidden; cursor:default; transition:transform 0.14s,box-shadow 0.14s; z-index:2; }
+.ev-block:hover { transform:scale(1.025); box-shadow:var(--shadow); z-index:10; }
+.ev-t { font-size:9px; font-weight:600; opacity:0.7; line-height:1.2; }
+.ev-n { font-size:11px; font-weight:700; line-height:1.25; margin-top:1px; }
+.ev-l { font-size:9px; opacity:0.65; margin-top:2px; }
+.ev-g { font-size:9px; opacity:0.55; }
+.c0{background:#deeeff;color:#1254a0;border-left:3px solid #3a8ef6}
+.c1{background:#dcf5e7;color:#15663a;border-left:3px solid #34c759}
+.c2{background:#ffefd6;color:#9a5500;border-left:3px solid #ff9f0a}
+.c3{background:#f0e3fb;color:#6a2799;border-left:3px solid #af52de}
+.c4{background:#ffd9e1;color:#a01030;border-left:3px solid #ff375f}
+.c5{background:#d6f0fc;color:#0b6e96;border-left:3px solid #32ade6}
+
+.welcome { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:40px; }
+.welcome-icon { width:60px; height:60px; border-radius:16px; background:var(--blue-bg); display:flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:4px; }
+.welcome h2 { font-size:18px; font-weight:700; letter-spacing:-0.2px; }
+.welcome p { font-size:13px; color:var(--text2); max-width:240px; line-height:1.55; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
+.ev-block { animation:fadeUp 0.16s ease both; }
+.prof-item { animation:fadeUp 0.1s ease both; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-head">
+      <div class="sb-title">Emploi du temps</div>
+      <div class="sb-badge" id="sb-badge">Aucun fichier chargé</div>
+    </div>
+    <div class="upload-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".ics">
+      <div class="up-icon">📅</div>
+      <strong>Importer un .ics</strong>
+      <small>Glisser-déposer ou cliquer</small>
+    </div>
+    <div class="search-row">
+      <div class="search-box">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="search" placeholder="Rechercher un prof…" autocomplete="off" disabled style="opacity:0.35;">
+      </div>
+    </div>
+    <div class="prof-scroll" id="prof-list">
+      <div class="empty-prof" id="empty-prof">Importez un fichier .ics<br>pour voir les professeurs</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">🗓</div>
+      <h2>Choisissez un professeur</h2>
+      <p>Importez votre fichier .ics ADE puis sélectionnez un enseignant dans la liste.</p>
+    </div>
+    <div id="tbl" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+      <div class="topbar">
+        <div>
+          <div class="tb-prof" id="tb-prof">—</div>
+          <div class="tb-range" id="tb-range"></div>
+        </div>
+        <div class="week-nav">
+          <button class="nav-btn" id="btn-prev" disabled>‹</button>
+          <div class="week-pill" id="week-pill">S—</div>
+          <button class="nav-btn" id="btn-next" disabled>›</button>
+        </div>
+      </div>
+      <div class="cal-wrap">
+        <div class="cal-card">
+          <div class="cal-head">
+            <div class="head-spacer"></div>
+            <div class="days-head" id="days-head"></div>
+          </div>
+          <div class="cal-grid-outer" id="cal-grid-outer">
+            <div class="cal-grid">
+              <div class="time-col" id="time-col"></div>
+              <div class="days-cols" id="days-cols"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────
+const HOUR_START = 7;
+const HOUR_END   = 20;
+const COLORS     = 6;
+let professors = {}, currentProf = null, weeks = [], weekIdx = 0;
+const colorMap = {}; let colorCtr = 0;
+function courseColor(s) {
+  const k = s.replace(/\d+/g,'').trim();
+  if (colorMap[k] === undefined) colorMap[k] = (colorCtr++) % COLORS;
+  return colorMap[k];
+}
+
+// ── DATE HELPERS ─────────────────────────────────────────────
+// ADE exporte les heures en UTC (suffixe Z). Il faut les convertir
+// en heure Europe/Paris (UTC+1 hiver, UTC+2 été) pour l'affichage.
+
+const TZ = 'Europe/Paris';
+
+function parseDate(s) {
+  const m = s.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
+  if (!m) return null;
+  // Si la chaîne se termine par Z → UTC réel → Date() le gère nativement
+  // Si pas de Z → ADE a mis l'heure locale, on la traite comme UTC quand même
+  // (ADE Toulouse met toujours Z, donc le cas normal est UTC→Paris)
+  return new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]));
+}
+
+// Convertit une Date en objet {year,month,day,hour,minute} en heure Paris
+function toParis(d) {
+  const fmt = new Intl.DateTimeFormat('fr-FR', {
+    timeZone: TZ,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', hour12:false
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(d).filter(p=>p.type!=='literal').map(p=>[p.type,+p.value]));
+  return parts; // {year, month(1-based), day, hour, minute}
+}
+
+function evH(d)   { const p=toParis(d); return p.hour + p.minute/60; }
+function fmtT(d)  { const p=toParis(d); return String(p.hour).padStart(2,'0')+':'+String(p.minute).padStart(2,'0'); }
+function evDow(d) { // 0=Mon..4=Fri in Paris local time
+  const p=toParis(d);
+  const jsDay = new Date(p.year, p.month-1, p.day).getDay(); // 0=Sun
+  return (jsDay+6)%7;
+}
+
+// Week key based on Paris calendar date
+function isoWeek(d) {
+  const p = toParis(d);
+  const t = new Date(Date.UTC(p.year, p.month-1, p.day));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay()||7));
+  const y1 = new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  return { year:t.getUTCFullYear(), week:Math.ceil(((t-y1)/86400000+1)/7) };
+}
+function weekKey(d) { const {year,week}=isoWeek(d); return `${year}-W${String(week).padStart(2,'0')}`; }
+function mondayOf(key) {
+  const [yr,ws] = key.split('-W');
+  const jan4 = new Date(Date.UTC(+yr,0,4));
+  const dow   = jan4.getUTCDay()||7;
+  const mon   = new Date(jan4);
+  mon.setUTCDate(jan4.getUTCDate()-dow+1+(+ws-1)*7);
+  return mon; // UTC midnight = minuit Paris (affiché avec timeZone:'UTC' pour les dates)
+}
+
+// Formatage des dates de la grille (jours de la semaine) — en UTC car mondayOf() retourne des dates UTC-midnight
+function fmtSD(d)  { return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',timeZone:'UTC'}); }
+function fmtDN(d)  { return d.toLocaleDateString('fr-FR',{weekday:'short',timeZone:'UTC'}).replace('.',''); }
+function fmtNum(d) { return d.toLocaleDateString('fr-FR',{day:'numeric',timeZone:'UTC'}); }
+
+// "Aujourd'hui" : compare la date Paris du jour courant avec la date UTC de la colonne
+function isToday(colDate) {
+  const now   = new Date();
+  const paris = toParis(now);
+  return colDate.getUTCFullYear()===paris.year && colDate.getUTCMonth()===paris.month-1 && colDate.getUTCDate()===paris.day;
+}
+
+// ── PARSER ───────────────────────────────────────────────────
+function parseICS(text) {
+  const raw = text.replace(/\r\n[ \t]/g,'').replace(/\r/g,'');
+  const evs = [];
+  const blocks = raw.split('BEGIN:VEVENT');
+  for (let i=1; i<blocks.length; i++) {
+    const b   = blocks[i];
+    const get = k => { const m=b.match(new RegExp('^'+k+'[^:]*:(.+)$','m')); return m?m[1].trim():''; };
+    const desc  = get('DESCRIPTION').replace(/\\n/g,'\n');
+    const lines = desc.split('\n').map(l=>l.trim()).filter(Boolean);
+    const exp   = lines.findIndex(l=>l.startsWith('(Exporté'));
+    const cont  = exp>=0 ? lines.slice(0,exp) : lines;
+    const profs  = cont.filter(l=>/^[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÇ][A-ZÀÂÄÉÈÊËÎÏÔÙÛÜÇ\s\-']{2,}$/.test(l)&&l.length>3&&!/^\d/.test(l)&&!/^[A-Z]{2,}\d/.test(l));
+    const groups = cont.filter(l=>/^[A-Z]{2,}[0-9]/.test(l));
+    const start  = parseDate(get('DTSTART'));
+    const end    = parseDate(get('DTEND'));
+    const summary = get('SUMMARY');
+    if (start && summary) evs.push({ summary, location:get('LOCATION'), start, end, profs, groups });
+  }
+  return evs;
+}
+function buildIndex(evs) {
+  const map = {};
+  evs.forEach(ev=>ev.profs.forEach(p=>{ if(!map[p])map[p]=[]; map[p].push(ev); }));
+  Object.keys(map).forEach(k=>map[k].sort((a,b)=>a.start-b.start));
+  return map;
+}
+
+// ── LOAD FILE ────────────────────────────────────────────────
+function loadFile(file) {
+  const r = new FileReader();
+  r.onload = e => {
+    const evs = parseICS(e.target.result);
+    professors = buildIndex(evs);
+    const nb = Object.keys(professors).length;
+    document.getElementById('sb-badge').textContent = `${nb} profs · ${evs.length} cours`;
+    const inp = document.getElementById('search');
+    inp.disabled=false; inp.style.opacity='';
+    document.getElementById('empty-prof').style.display='none';
+    renderProfList('');
+  };
+  r.readAsText(file,'UTF-8');
+}
+
+// ── SIDEBAR ──────────────────────────────────────────────────
+const AV=[['#deeeff','#1254a0'],['#dcf5e7','#15663a'],['#ffefd6','#9a5500'],['#f0e3fb','#6a2799'],['#ffd9e1','#a01030'],['#d6f0fc','#0b6e96']];
+const avMap={}; let avCtr=0;
+function avCol(n){if(!avMap[n])avMap[n]=(avCtr++)%AV.length;return AV[avMap[n]];}
+function ini(n){return n.split(/\s+/).filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+
+function renderProfList(q) {
+  const list=document.getElementById('prof-list');
+  list.querySelectorAll('.prof-item').forEach(e=>e.remove());
+  const names=Object.keys(professors).filter(n=>!q||n.toLowerCase().includes(q.toLowerCase())).sort();
+  if(!names.length){const em=document.getElementById('empty-prof');em.style.display='';em.textContent='Aucun résultat';return;}
+  document.getElementById('empty-prof').style.display='none';
+  names.forEach((name,i)=>{
+    const [bg,fg]=avCol(name);
+    const div=document.createElement('div');
+    div.className='prof-item'+(name===currentProf?' active':'');
+    div.style.animationDelay=(i*12)+'ms';
+    div.innerHTML=`<div class="prof-avatar" style="background:${bg};color:${fg}">${ini(name)}</div>
+      <div><div class="pname">${name}</div><div class="pmeta">${professors[name].length} cours</div></div>`;
+    div.addEventListener('click',()=>selectProf(name));
+    list.appendChild(div);
+  });
+}
+
+// ── SELECT PROF ──────────────────────────────────────────────
+function selectProf(name) {
+  currentProf=name;
+  document.querySelectorAll('.prof-item').forEach(el=>el.classList.toggle('active',el.querySelector('.pname').textContent===name));
+  const wkSet=new Set(professors[name].map(ev=>weekKey(ev.start)));
+  weeks=Array.from(wkSet).sort();
+  // jump to current/nearest week
+  const todayKey=weekKey(new Date());
+  let idx=weeks.findIndex(k=>k>=todayKey);
+  weekIdx=idx>=0?idx:weeks.length-1;
+  document.getElementById('welcome').style.display='none';
+  const tbl=document.getElementById('tbl'); tbl.style.display='flex';
+  document.getElementById('tb-prof').textContent=name;
+  renderWeek();
+}
+
+// ── RENDER WEEK ──────────────────────────────────────────────
+function renderWeek() {
+  const key=weeks[weekIdx];
+  const mon=mondayOf(key);
+  const fri=new Date(mon); fri.setUTCDate(mon.getUTCDate()+4);
+  const {week}=isoWeek(mon);
+  const totalH=HOUR_END-HOUR_START;
+
+  // Dynamic hour height: fill the visible grid area
+  const outer=document.getElementById('cal-grid-outer');
+  const headH=document.querySelector('.cal-head')?.offsetHeight||50;
+  const availH=outer.clientHeight||Math.max(300,window.innerHeight-160);
+  const HOUR_H=Math.max(32,Math.floor(availH/totalH));
+
+  // nav state
+  document.getElementById('btn-prev').disabled=weekIdx<=0;
+  document.getElementById('btn-next').disabled=weekIdx>=weeks.length-1;
+  document.getElementById('week-pill').textContent=`S${week}`;
+  document.getElementById('tb-range').textContent=`${fmtSD(mon)} – ${fmtSD(fri)}`;
+
+  const evs=professors[currentProf].filter(ev=>weekKey(ev.start)===key);
+
+  // ── Day headers ──────────────────────────────────────────
+  const dh=document.getElementById('days-head'); dh.innerHTML='';
+  for(let i=0;i<5;i++){
+    const d=new Date(mon); d.setUTCDate(mon.getUTCDate()+i);
+    const cell=document.createElement('div'); cell.className='day-head-cell';
+    const tod=isToday(d);
+    cell.innerHTML=`<div class="dhc-name">${fmtDN(d)}</div>${tod?`<div class="dhc-num today">${fmtNum(d)}</div>`:`<div class="dhc-num">${fmtNum(d)}</div>`}`;
+    dh.appendChild(cell);
+  }
+
+  // ── Time gutter ─────────────────────────────────────────
+  const tc=document.getElementById('time-col');
+  tc.style.height=(totalH*HOUR_H)+'px'; tc.innerHTML='';
+  for(let h=HOUR_START;h<HOUR_END;h++){
+    const tick=document.createElement('div');
+    tick.className='time-tick';
+    tick.style.top=((h-HOUR_START)*HOUR_H)+'px';
+    tick.style.height=HOUR_H+'px';
+    tick.innerHTML=`<span>${h}h</span>`;
+    tc.appendChild(tick);
+  }
+
+  // ── Day columns ─────────────────────────────────────────
+  const dc=document.getElementById('days-cols');
+  dc.innerHTML=''; dc.style.height=(totalH*HOUR_H)+'px';
+  for(let i=0;i<5;i++){
+    const d=new Date(mon); d.setUTCDate(mon.getUTCDate()+i);
+    const col=document.createElement('div');
+    col.className='day-col'+(isToday(d)?' is-today':'');
+    for(let h=0;h<totalH;h++){
+      const gl=document.createElement('div'); gl.className='grid-line solid'; gl.style.top=(h*HOUR_H)+'px'; col.appendChild(gl);
+      const gh=document.createElement('div'); gh.className='grid-line dashed'; gh.style.top=(h*HOUR_H+HOUR_H/2)+'px'; col.appendChild(gh);
+    }
+    dc.appendChild(col);
+  }
+
+  // ── Events ─────────────────────────────────────────────
+  evs.forEach((ev,i)=>{
+    const dow=evDow(ev.start);
+    if(dow>4) return;
+    const col=dc.children[dow]; if(!col) return;
+    // Heures en heure Paris
+    const sh=evH(ev.start);
+    const eh=evH(ev.end);
+    const top=(sh-HOUR_START)*HOUR_H;
+    const h=Math.max((eh-sh)*HOUR_H-3,20);
+    const c=courseColor(ev.summary);
+    const el=document.createElement('div');
+    el.className=`ev-block c${c}`;
+    el.style.top=top+'px'; el.style.height=h+'px';
+    el.style.animationDelay=(i*20)+'ms';
+    el.innerHTML=
+      (h>32?`<div class="ev-t">${fmtT(ev.start)} – ${fmtT(ev.end)}</div>`:'')+
+      `<div class="ev-n">${ev.summary}</div>`+
+      (h>50&&ev.location?`<div class="ev-l">📍 ${ev.location}</div>`:'')+
+      (h>64&&ev.groups[0]?`<div class="ev-g">${ev.groups[0]}</div>`:'');
+    col.appendChild(el);
+  });
+
+  // scroll to first event of the week
+  if(evs.length){
+    const first=evs.reduce((a,b)=>a.start<b.start?a:b);
+    const sh=evH(first.start);
+    outer.scrollTop=Math.max(0,(sh-HOUR_START-0.5)*HOUR_H);
+  } else { outer.scrollTop=0; }
+}
+
+// ── EVENTS ───────────────────────────────────────────────────
+document.getElementById('btn-prev').addEventListener('click',()=>{if(weekIdx>0){weekIdx--;renderWeek();}});
+document.getElementById('btn-next').addEventListener('click',()=>{if(weekIdx<weeks.length-1){weekIdx++;renderWeek();}});
+document.getElementById('search').addEventListener('input',e=>renderProfList(e.target.value));
+window.addEventListener('resize',()=>{if(currentProf)renderWeek();});
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)loadFile(f);});
+document.getElementById('file-input').addEventListener('change',e=>{const f=e.target.files[0];if(f)loadFile(f);});
+</script>
+</body>
+</html>
